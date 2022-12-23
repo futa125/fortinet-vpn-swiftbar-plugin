@@ -1,1 +1,1 @@
-# openfortivpn-xbar-plugin
+# OpenFortiVPN Plugin for SwiftBar
