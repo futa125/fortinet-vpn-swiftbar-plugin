@@ -1,10 +1,19 @@
-#!/usr/bin/env zsh
+#!/usr/bin/env bash
 
-# <xbar.title>OpenFortiVPN</xbar.title>
-# <xbar.version>v1.0</xbar.version>
-# <xbar.author>Ivan Futivić</xbar.author>
-# <xbar.author.github>futa125</xbar.author.github>
-# <xbar.desc>Better replacement for FortiClient VPN</xbar.desc>
+# <bitbar.title>OpenFortiVPN</bitbar.title>
+# <bitbar.version>v1.0</bitbar.version>
+# <bitbar.author>Ivan Futivic</bitbar.author>
+# <bitbar.author.github>futa125</bitbar.author.github>
+# <bitbar.desc>A better alternative to the FortiClient VPN app on MacOS.</bitbar.desc>
+# <bitbar.dependencies>openfortivpn,tmux</bitbar.dependencies>
+
+# <swiftbar.hideAbout>true</swiftbar.hideAbout>
+# <swiftbar.hideRunInTerminal>true</swiftbar.hideRunInTerminal>
+# <swiftbar.hideLastUpdated>true</swiftbar.hideLastUpdated>
+# <swiftbar.hideDisablePlugin>true</swiftbar.hideDisablePlugin>
+# <swiftbar.hideSwiftBar>true</swiftbar.hideSwiftBar>
+# <swiftbar.schedule>* * * * *</swiftbar.schedule>
+# <swiftbar.refreshOnOpen>true</swiftbar.refreshOnOpen>
 
 # Requirements:
 #   1. Install openfortivpn
@@ -38,37 +47,86 @@ TMUX_SESSION_NAME="forti"
 VPN_CONNECT="$TMUX_EXECUTABLE new-session -d -s $TMUX_SESSION_NAME sudo $VPN_EXECUTABLE -c $VPN_EXECUTABLE_PARAMS"
 VPN_DISCONNECT="$TMUX_EXECUTABLE send-keys -t $TMUX_SESSION_NAME C-c"
 VPN_CONNECTED="ifconfig | grep -q $VPN_INTERFACE"
+VPN_CONNECTING="$TMUX_EXECUTABLE list-sessions | grep -q $TMUX_SESSION_NAME"
+
+START_FILE="$HOME/.forti-start-time"
+START_TIME="$(cat "$START_FILE")"
+IP_ADDRESS_FILE="$HOME/.forti-public-ip"
+IP_ADDRESS="$(cat "$IP_ADDRESS_FILE")"
 
 CONNECT_ARG="connect"
 DISCONNECT_ARG="disconnect"
+REFRESH_ARG="refresh"
 
-CONNECTED_ICON="iVBORw0KGgoAAAANSUhEUgAAACwAAAAsCAYAAAAehFoBAAAACXBIWXMAABYlAAAWJQFJUiTwAAACKUlEQVRYhe2Y323CMBDGP6pE9lvTCcgIdAM2gE7QjJARygRlhDBBwwbpBGWEdILCm6U8pA9xJTeN7bNjoCA+KRIh9+dHuJwvnrRti0vS3bkBXHUDPrYuDjgKHTDmfK6eN0JUIeNPQnQJCZkDWGhMtgDWIeBHAcecJwAK6EH72gLIGiH2vjm9azjmfAagwjDsuzz6WgCopK+f2rZ1PiLGkoixOmKsVY4qYmw5YLuU11TbOmIs8cntC9wHyAk+ef8HngQ4YizrJc5O4TsGWC2F0sO/VEvD1d/poYs5XwKYytMDgMzjscmkLwBMZUyyXLuEGrz0aU/Sp9TEtMoVeK58LnVGBKm+c53RkMgLh1wkvn7OGyEmLokG4qmJH6j/lsss8avZx5zn6O5O4hADAPboFpx+7P53gxoz/LyO8KUu5X/kUsOpb5KQsUk1LFvP2wggip4aIawPshU45jwFsANwH4ZLqwOAWSNEbTKilESB48NC5ihsRsY7LMfAj3BMJD02Qux0F213OAvLQpIxpw14HgyDLmNOW0mcZVvItIpe3Gv+1QEfLNePIWNOG3AVjoMsY04b8JiZ11fGnLYukQCocZqVDujKITXNxsY7LB3z0FQGvdgGeeq0VgB4DgSl06YRIrMZkdqaDLQZCWQSCRZw6MMy4MoTyKQVFRbw2L2U83GO7vV8arbW6hNdN1jb5t++xm63pnB/dapdIVUF2dA+pa5ulvh3ugEfW99VuFcwHi1SdQAAAABJRU5ErkJggg=="
+CONNECTED_ICON="checkmark.icloud.fill"
+DISCONNECTED_ICON="xmark.icloud.fill"
 
-DISCONNECTED_ICON="iVBORw0KGgoAAAANSUhEUgAAACwAAAAsCAYAAAAehFoBAAAACXBIWXMAABYlAAAWJQFJUiTwAAACIElEQVRYhe2Y0W2DMBCG/1Qg+610gjICnaDZoHSCMgIjJBswQrJBMkHpBE0nKJ2gyZslHugDbososc/GQBPll6wI2+f7Yh3nM7OqqnBKupoawFQX4KF1csCe6wV9zufN51KI3OX6MxdZQkKmAB6OTNkCyFzA9wL2OQ8ArHActK0tgKQUYm/r0xrY5zwCsAFw2zH8In/vO8beUEPvrBxXVWXcPMYCj7HCY6xqtNxjLO6YG8ux5tzCYyyw8W0L3AZICTZp+w+OAuwxlrQcJ2PYfjfjGPY5zwBE8nFXCpEa2m/w+5J+lEKEJvZO0pqJfM5DAO+NrsdSiA3VfvSTrhSiALBudMUm9lMdzc0dnZsYjh4SwM+B89nouqEeJla1hIzDGPXuBIbmewB5qy/q6OuUEbDcmQzAk4ldh6hH+R+RgeVRnAO4tnWmUEidSIphWY092/OQREpvWmAZrzsMs7NNHQBEMu0dFSWtrTA8LKSPlW6Scodl3L66YyLpTlV66nY4cctCktKnDnjuDIMupU9dSEzyWagUYnZs7OSu+WcHfBiFwsCnDjh3x0GW0qcOmHwTcCilT12WCAAUGOekA+pwCFW1sXKHpeHCMZRKC10hT63WVuhfA+u0LoVIdJNIaU0utNbN6yESLGCQh+WCS0sglZZUWMDiEirr4xR1kWL7Mh5Ql5KZrv5tq+/n1ggWl1DrL5eY6JrfR2dXS/w7XYCH1hd/HPJ08CUs5gAAAABJRU5ErkJggg=="
+connect_vpn() {
+    rm "$START_FILE"
+    eval "$VPN_CONNECT"
+    until eval "$VPN_CONNECTED"; do true; done
+    date +%s > "$START_FILE"
+}
+
+disconnect_vpn() {
+    eval "$VPN_DISCONNECT"
+    while eval "$VPN_CONNECTED"; do true; done
+}
+
+update_ip () {
+    curl ifconfig.me > "$IP_ADDRESS_FILE"
+}
+
+if eval "$VPN_CONNECTING && ! $VPN_CONNECTED"; then
+    echo "| sfimage=$DISCONNECTED_ICON"
+    echo "---"
+    echo "Status: Connecting..."
+    exit
+fi
 
 case "$1" in
     "$CONNECT_ARG")
-        eval "$VPN_CONNECT"
-        until eval "$VPN_CONNECTED"; do true; done
+        disconnect_vpn
+	    connect_vpn     
+        sleep 1
+        update_ip
+        exit
         ;;
     "$DISCONNECT_ARG")
-        eval "$VPN_DISCONNECT"
-        while eval "$VPN_CONNECTED"; do true; done
+        disconnect_vpn
+        sleep 1
+        update_ip
+        exit
+        ;;
+    "$REFRESH_ARG")
+        update_ip
+        exit
         ;;
 esac
 
 if eval "$VPN_CONNECTED"; then
-    echo "| templateImage=$CONNECTED_ICON"
+    echo "| sfimage=$CONNECTED_ICON"
     echo "---"
-    echo "Disconnect VPN | bash='$0' param1=$DISCONNECT_ARG refresh=true"
+    echo "Disconnect OpenFortiVPN | shell=$0 param1=$DISCONNECT_ARG terminal=false refresh=true"
     echo "---"
-    echo "Status: Connected |"
-    exit
+    echo "Status: Connected"
 else
-    echo "| templateImage=$DISCONNECTED_ICON"
+    echo "| sfimage=$DISCONNECTED_ICON"
     echo "---"
-    echo "Connect VPN | bash='$0' param1=$CONNECT_ARG refresh=true"
+    echo "Connect OpenFortiVPN | shell=$0 param1=$CONNECT_ARG terminal=false refresh=true"
     echo "---"
-    echo "Status: Disconnected |"
-    exit
+    echo "Status: Disconnected"
 fi
+
+echo "Public IP: $IP_ADDRESS"
+
+if eval "$VPN_CONNECTED"; then
+    seconds=$(($(date +%s) - START_TIME))
+    printf 'Connection Time: %02dh:%02dm:%02ds\n' $((seconds / 3600)) $((seconds % 3600 / 60)) $((seconds % 60))
+fi
+
+echo "---"
+echo "Refresh Connection Details | shell=$0 param1=$REFRESH_ARG terminal=false refresh=true"
+echo "---"
+echo "Config File: $VPN_EXECUTABLE_PARAMS"
+echo "--Open in Editor | shell=open param1=$VPN_EXECUTABLE_PARAMS terminal=false"
